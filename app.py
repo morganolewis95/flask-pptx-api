@@ -1,7 +1,8 @@
 from flask import Flask, request, send_file
 from flask_cors import CORS
 from pptx import Presentation
-from pptx.util import Inches
+from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
 import tempfile
 import os
 import requests
@@ -20,20 +21,44 @@ def generate_ppt():
     for slide_data in slides:
         slide_layout = prs.slide_layouts[1]  # Title and Content layout
         slide = prs.slides.add_slide(slide_layout)
-        title = slide.shapes.title
-        content = slide.placeholders[1]
 
-        title.text = slide_data.get("title", "Untitled")
-        content.text = "\n".join(slide_data.get("bullets", []))
+        # Background color
+        bg_color = slide_data.get("background_color")
+        if bg_color:
+            fill = slide.background.fill
+            fill.solid()
+            rgb = tuple(int(bg_color.lstrip('#')[i:i+2], 16) for i in (0, 2 ,4))
+            fill.fore_color.rgb = RGBColor(*rgb)
 
+        # Title formatting
+        title_shape = slide.shapes.title
+        title_text = slide_data.get("title", "Untitled")
+        title_shape.text = title_text
+        if title_shape.text_frame.paragraphs:
+            title_run = title_shape.text_frame.paragraphs[0].runs[0]
+            title_run.font.bold = True
+            title_run.font.size = Pt(32)
+
+        # Bullet points
+        content_shape = slide.placeholders[1]
+        content_frame = content_shape.text_frame
+        content_frame.clear()
+        bullets = slide_data.get("bullets", [])
+        for bullet in bullets:
+            p = content_frame.add_paragraph()
+            p.text = bullet
+            p.level = 0
+
+        # Image
         image_url = slide_data.get("image_url")
         if image_url:
             try:
-                response = requests.get(image_url)
-                image_stream = BytesIO(response.content)
-                slide.shapes.add_picture(image_stream, Inches(1), Inches(3.5), width=Inches(6))
+                img_resp = requests.get(image_url)
+                if img_resp.status_code == 200:
+                    image_stream = BytesIO(img_resp.content)
+                    slide.shapes.add_picture(image_stream, Inches(5), Inches(2), width=Inches(4.5))
             except Exception as e:
-                print(f"Error adding image from {image_url}: {e}")
+                print(f"Image download failed: {e}")
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pptx")
     prs.save(temp_file.name)
