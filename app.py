@@ -28,5 +28,6 @@ def generate_ppt():
 
     return send_file(temp_file.name, as_attachment=True, download_name="generated_presentation.pptx")
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=True)
