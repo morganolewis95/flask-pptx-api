@@ -1,3 +1,5 @@
 flask
-python-pptx
 flask-cors
+python-pptx
+requests
+
